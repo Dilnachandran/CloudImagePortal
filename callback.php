@@ -1,12 +1,12 @@
 <?php
-require 'vendor/autoload.php'; // Load Google API client library
+require 'google-api-php-client-old/vendor/autoload.php'; // Load Google API client library
 
 session_start(); // Start PHP session to store tokens
 
 $client = new Google_Client();
 $client->setAuthConfig('credentials.json'); // Path to your credentials.json
 $client->addScope(Google_Service_Drive::DRIVE); // Set necessary scopes
-$client->setRedirectUri('http://localhost/callback.php'); // Redirect URI should match Google Console settings
+$client->setRedirectUri('http://localhost:8000/callback.php'); // Redirect URI should match Google Console settings
 
 // Check if the authorization code is returned
 if (isset($_GET['code'])) {

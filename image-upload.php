@@ -20,7 +20,7 @@ $driveService = new Google_Service_Drive($client);
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['image'])) {
     $file = new Google_Service_Drive_DriveFile();
     $file->setName($_FILES['image']['name']);
-    $file->setParents(['YOUR_FOLDER_ID']); // Replace with your folder ID
+    $file->setParents(['1DAhA-K2jxmb_F-ETSRWhDTwfbIy7pu1A']); // Replace with your folder ID
 
     $fileData = file_get_contents($_FILES['image']['tmp_name']);
     $createdFile = $driveService->files->create($file, [
