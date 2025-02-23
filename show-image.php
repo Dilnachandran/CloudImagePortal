@@ -16,18 +16,26 @@ if (!isset($_SESSION['access_token'])) {
 $client->setAccessToken($_SESSION['access_token']);
 $driveService = new Google_Service_Drive($client);
 
-$folderId = '1DAhA-K2jxmb_F-ETSRWhDTwfbIy7pu1A'; // Replace with your folder ID
+$folderId = '1DAhA-K2jxmb_F-ETSRWhDTwfbIy7pu1A'; // Replace with your correct folder ID
 $query = "'$folderId' in parents and trashed = false";
 
-$files = $driveService->files->listFiles([
-    'q' => $query,
-    'fields' => 'files(id, name, thumbnailLink, webContentLink)'
-]);
+try {
+    $files = $driveService->files->listFiles([
+        'q' => $query,
+        'fields' => 'files(id, name, thumbnailLink)',
+        'supportsAllDrives' => true,
+        'includeItemsFromAllDrives' => true
+    ]);
 
-foreach ($files->getFiles() as $file) {
-    echo "<div>
-        <h3>{$file->getName()}</h3>
-        <img src='{$file->getThumbnailLink()}' alt='{$file->getName()}' />
-    </div>";
+    foreach ($files->getFiles() as $file) {
+        echo "<div>
+            <h3>{$file->getName()}</h3>
+                    <img src='{$file->getThumbnailLink()}' alt='{$file->getName()}' />
+
+            
+        </div>";
+    }
+} catch (Google_Service_Exception $e) {
+    echo 'Error: ' . $e->getMessage();
 }
 ?>

@@ -1,5 +1,5 @@
 <?php
-require 'google-api-php-client-old/vendor/autoload.php'; // Load Google API client library
+require 'vendor/autoload.php'; // Load Google API client library
 
 session_start(); // Start PHP session to store tokens
 
