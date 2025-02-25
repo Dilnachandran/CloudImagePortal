@@ -20,6 +20,45 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
 } else {
     echo "User is not authenticated.";
 }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['permissions'])) {
+  $fileId = $_POST['fileId'];
+  $permissions = $_POST['permissions'];
+
+  foreach ($permissions as $email => $role) {
+      if ($role === 'remove') {
+          // Remove permission
+          $permissionId = getPermissionIdByEmail($service, $fileId, $email);
+          if ($permissionId) {
+              $service->permissions->delete($fileId, $permissionId);
+          }
+      } else {
+          // Update or add permission
+          $permissionId = getPermissionIdByEmail($service, $fileId, $email);
+          $permission = new Google_Service_Drive_Permission();
+          $permission->setEmailAddress($email);
+          $permission->setRole($role);
+          $permission->setType('user');
+
+          if ($permissionId) {
+              $updatedPerm = new Google_Service_Drive_Permission();
+              $updatedPerm->setRole($role);
+              $service->permissions->update($fileId, $permissionId, $updatedPerm);
+          } else {
+              $service->permissions->create($fileId, $permission);
+          }
+      }
+  }
+}
+
+function getPermissionIdByEmail($service, $fileId, $email) {
+  $permissions = $service->permissions->listPermissions($fileId, ['fields' => 'permissions(id, emailAddress)']);
+  foreach ($permissions->getPermissions() as $permission) {
+      if ($permission->getEmailAddress() === $email) {
+          return $permission->getId();
+      }
+  }
+  return null;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -167,25 +206,53 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
         $fileId = $_GET['fileId'];
         
         try {
-            // Fetch the file details using Google Drive API's files->get() method
-            $fileDetails = $service->files->get($fileId);
-            
+            // Fetch the file details using Google Drive API's files->get() method including thumbnailLink and name
+            $folderId = '1DAhA-K2jxmb_F-ETSRWhDTwfbIy7pu1A';//TODO: make it configurable in central location
+            $service->files->get($fileId)['permissions'];
+            $fileDetails = $service->files->get($fileId, ['fields' => 'thumbnailLink, name, permissions']);
+            $optParams = array(
+              'fields' => '*'
+            );
+            $folderpermissions = $service->permissions->listPermissions($folderId, $optParams); 
             if ($fileDetails) {
-                // Get the thumbnail URL and file name
-                $imageUrl = $fileDetails->getThumbnailLink(); // This is the thumbnail URL (not the actual image)
-                $fileName = $fileDetails->getName(); // Get the file name
-                
-                // If no thumbnail URL, use web view link for the full-size image (if applicable)
-                if (!$imageUrl) {
-                    $imageUrl = $fileDetails->getWebViewLink(); // If there's no thumbnail, use the web view link
+              // Get the thumbnail URL and file name
+              $imageUrl = $fileDetails->getThumbnailLink(); // This is the thumbnail URL (not the actual image)
+              $fileName = $fileDetails->getName(); // Get the file name  
+              $filePermissions = $fileDetails->getPermissions(); // Get the permissions
+              // Display the image or the full-size image link
+              echo "<img src='{$imageUrl}' alt='{$fileName}' style='max-width: 100%; ' referrerPolicy='no-referrer'>";
+                echo "<ul>";
+                $filePermissionsMap = [];
+                foreach ($filePermissions as $filePermission) {
+                $filePermissionsMap[$filePermission->getEmailAddress()] = $filePermission->getRole();
                 }
-                
-                // Display the image or the full-size image link
-                // echo "<h2>Image: $fileName</h2>";
-                echo "<img src='$imageUrl' alt='$fileName' style='max-width: 100%;'>";
+
+                foreach ($folderpermissions->permissions as $folderPermission) {
+                if ($folderPermission->getRole() == 'owner') {
+                  continue; // Skip if the role is 'owner'
+                }
+                $email = $folderPermission->getEmailAddress();
+                $role = isset($filePermissionsMap[$email]) ? $filePermissionsMap[$email] : 'not selected';
+
+                echo "<li>$email - ";
+                echo "<select name='permissions[$email]'>";
+                if ($role != 'reader') {
+                  echo "<option value='not selected'" . ($role == 'not selected' ? ' selected' : '') . ">Not Selected</option>";
+                }
+                echo "<option value='reader'" . ($role == 'reader' ? ' selected' : '') . ">Reader</option>";
+                if ($role != 'not selected') {
+                  echo "<option value='remove'>Remove</option>";
+                }
+                echo "</select>";
+                echo "current role: " . $role;
+                echo "</li>";
+                }
+                echo "</ul>";
+                echo "<input type='hidden' name='fileId' value='{$fileId}'>";
             } else {
-                echo "File not found.";
+              echo "File not found.";
             }
+         
         } catch (Google_Service_Exception $e) {
             echo "Error fetching file details: " . $e->getMessage();
         }
@@ -196,17 +263,9 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
     echo "User is not authenticated.";
 }
 ?>
-                <div class="mb-3 col-lg-12">
-                    <div class="col-lg-6" style="display: block;">
-                      <input type="checkbox" name="name1" value="name1">
-                      <label for="id1"> dilnachandran555@gmail.com</label><br>
-                    </div>
-                    <div class="col-lg-6" style="display: block;">
-                      <input type="checkbox" name="name2" value="name2">
-                      <label for="id2">nikhildas2005@gmail.com</label><br>
-                    </div>
+                <div class="mb-3 col-lg-12">   
                     <div class="col-lg-6" style="display:block;">
-                       <button type="submit" class="btn bg-gradient-info w-100 mt-4 mb-0">Upload Image</button>
+                       <button type="submit" class="btn bg-gradient-info w-100 mt-4 mb-0">Change permission</button>
                     </div>
                     </div>
                 </form>
