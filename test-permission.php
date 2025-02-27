@@ -79,6 +79,18 @@ function getPermissionIdByEmail($service, $fileId, $email) {
   <link href="assets/css/nucleo-svg.css" rel="stylesheet" />
   <!-- CSS Files -->
   <link id="pagestyle" href="assets/css/soft-ui-dashboard.css?v=1.0.3" rel="stylesheet" />
+  <script>
+    function validateForm() {
+      var selects = document.querySelectorAll('select[name^="permissions"]');
+      for (var i = 0; i < selects.length; i++) {
+        if (selects[i].value === 'not selected') {
+          alert('Please select a valid permission');
+          return false;
+        }
+      }
+      return true;
+    }
+  </script>
 </head>
 
 <body class="g-sidenav-show  bg-gray-100">
@@ -193,7 +205,7 @@ function getPermissionIdByEmail($service, $fileId, $email) {
             <div class="card-body px-0 pt-0 pb-2">
               <div class="table-responsive p-0">
                 <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data"  onsubmit="return validateForm()">
 
                 <?php
 if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
@@ -215,11 +227,7 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
             $optParams = array(
               'fields' => '*'
             );
-            //get owner of the image
-            $ownerss = $fileDetails->getOwners();
-            if (!empty($ownerss)) {
-                $fileownerEmail = $ownerss[0]->getEmailAddress();
-            }
+        
 
             $folderpermissions = $service->permissions->listPermissions($folderId, $optParams); 
             if ($fileDetails) {
@@ -236,18 +244,19 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
                 }
 
                 foreach ($folderpermissions->permissions as $folderPermission) {
-                  if ($folderPermission->getRole() == 'owner') {
+                  if ($folderPermission->getRole() == 'owner' || $folderPermission->getEmailAddress() == $userEmail) {
                     continue; // Skip if the role is 'owner'
                   }
                 $email = $folderPermission->getEmailAddress();
                 $role = isset($filePermissionsMap[$email]) ? $filePermissionsMap[$email] : 'not selected';
 
                 echo "<li>$email - ";
-                echo "<select name='permissions[$email]'>";
-                if ($role != 'reader') {
+                echo "<select name='permissions[$email]' id='permissions[$email]'>";
+                if ($role != 'reader' && $role != 'writer') {
                   echo "<option value='not selected'" . ($role == 'not selected' ? ' selected' : '') . ">Not Selected</option>";
                 }
                 echo "<option value='reader'" . ($role == 'reader' ? ' selected' : '') . ">Reader</option>";
+                echo "<option value='writer'" . ($role == 'writer' ? ' selected' : '') . ">Writer</option>";
                 if ($role != 'not selected') {
                   echo "<option value='remove'>Remove</option>";
                 }
