@@ -56,6 +56,14 @@ foreach ($permissions->getPermissions() as $permission) {
   catch (Google_Service_Exception $e) {
    
 }
+if (isset($_SESSION['message'])) {
+  echo "<div class='alert alert-success'>" . $_SESSION['message'] . "</div>";
+  unset($_SESSION['message']);
+}
+if (isset($_SESSION['error'])) {
+  echo "<div class='alert alert-danger'>" . $_SESSION['error'] . "</div>";
+  unset($_SESSION['error']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -252,21 +260,21 @@ foreach ($permissions->getPermissions() as $permission) {
             <div class="card-header pb-0">
               <h6 style="display: block;float: left;">Gallery</h6>
               
-              <?php if ($isOwner): ?>
+              
                 <h8 style="display: block;float: right;"><a href="insert.php">Add Image</a></h8>
-              <?php endif; ?>
+              
             </div>
             <div class="card-body px-0 pt-0 pb-2">
               <div class="table-responsive p-0">
                 <table class="table align-items-center mb-0">
                   <thead>
-                    <tr>
+                    <t>
                       <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Image</th>
                       <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <?php                       
+                  <?php
                         $query = "'$folderId' in parents and trashed = false";
 
                         try {
@@ -277,31 +285,45 @@ foreach ($permissions->getPermissions() as $permission) {
                                 'includeItemsFromAllDrives' => true
                             ]);
 
-                            foreach ($files->getFiles() as $file) {                               
+                            foreach ($files->getFiles() as $file) {
+                                $fileId = $file->getId();
+                                $fileName = $file->getName();
+                                $thumbnail = $file->getThumbnailLink();
+                                $owners = $file->getOwners();
+                                $isUploader = false;
+
+                                // Check if the logged-in user is one of the owners
+                                foreach ($owners as $owner) {
+                                    if ($owner->getEmailAddress() === $userEmail) {
+                                        $isUploader = true;
+                                        break;
+                                    }
+                                }
+
                                 echo "<tr>
                                         <td>
                                             <div class='d-flex px-2 py-1'>
                                                 <div>
-                                                    <img src='{$file->getThumbnailLink()}' alt='{$file->getName()}' class='avatar avatar-sm me-3' referrerPolicy='no-referrer'>
+                                                    <img src='$thumbnail' alt='$fileName' class='avatar avatar-sm me-3' referrerpolicy='no-referrer'>
                                                 </div>
                                                 <div class='d-flex flex-column justify-content-center'>
-                                                    <h6 class='mb-0 text-sm'>{$file->getName()}</h6>
+                                                    <h6 class='mb-0 text-sm'>$fileName</h6>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class='align-middle text-center text-sm'>";
-                                if ($isOwner) {
-                                    echo "<span class='badge badge-sm bg-gradient-success'>
-                                            <a href='test-permission.php?fileId={$file->getId()}'>Permission</a>
-                                          </span>";
+                                        <td class='align-middle text-center'>";
+
+                                if ($isUploader) {
+                                    echo "<a href='test-permission.php?fileId=$fileId' style='background-color: green;' class='btn btn-sm btn-primary'>Permission</a>";
+                                    echo "<a href='delete.php?fileId=$fileId' style='background-color: red;' class='btn btn-sm btn-primary'>Delete</a>";
                                 }
-                                echo "</td>
-                                      </tr>";
+
+                                echo "</td></tr>";
                             }
                         } catch (Google_Service_Exception $e) {
                             echo 'Error: ' . $e->getMessage();
                         }
-                    ?>
+                        ?>
                    
                   </tbody>
                 </table>

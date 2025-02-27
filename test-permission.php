@@ -6,7 +6,9 @@ session_start();
 $client = new Google_Client();
 $client->setAuthConfig('credentials.json'); // Path to your credentials.json
 $client->addScope(Google_Service_Drive::DRIVE); // Set the scope (Google Drive access)
-$client->setRedirectUri('http://localhost:8000/callback.php'); // Redirect URI must match your Google Console settings
+$redirectUri = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]/callback.php";
+$client->setRedirectUri($redirectUri);
+//$service = new Google_Service_Drive($client);
 //Get email id
 if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
     $client->setAccessToken($_SESSION['access_token']);
@@ -209,10 +211,16 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
             // Fetch the file details using Google Drive API's files->get() method including thumbnailLink and name
             $folderId = '1DAhA-K2jxmb_F-ETSRWhDTwfbIy7pu1A';//TODO: make it configurable in central location
             $service->files->get($fileId)['permissions'];
-            $fileDetails = $service->files->get($fileId, ['fields' => 'thumbnailLink, name, permissions']);
+            $fileDetails = $service->files->get($fileId, ['fields' => 'thumbnailLink, name, permissions,owners']);
             $optParams = array(
               'fields' => '*'
             );
+            //get owner of the image
+            $ownerss = $fileDetails->getOwners();
+            if (!empty($ownerss)) {
+                $fileownerEmail = $ownerss[0]->getEmailAddress();
+            }
+
             $folderpermissions = $service->permissions->listPermissions($folderId, $optParams); 
             if ($fileDetails) {
               // Get the thumbnail URL and file name
@@ -221,16 +229,16 @@ if (isset($_SESSION['access_token']) && $_SESSION['access_token']) {
               $filePermissions = $fileDetails->getPermissions(); // Get the permissions
               // Display the image or the full-size image link
               echo "<img src='{$imageUrl}' alt='{$fileName}' style='max-width: 100%; ' referrerPolicy='no-referrer'>";
-                echo "<ul>";
+                echo "<ul style='list-style-type: none;'>";
                 $filePermissionsMap = [];
                 foreach ($filePermissions as $filePermission) {
                 $filePermissionsMap[$filePermission->getEmailAddress()] = $filePermission->getRole();
                 }
 
                 foreach ($folderpermissions->permissions as $folderPermission) {
-                if ($folderPermission->getRole() == 'owner') {
-                  continue; // Skip if the role is 'owner'
-                }
+                  if ($folderPermission->getRole() == 'owner') {
+                    continue; // Skip if the role is 'owner'
+                  }
                 $email = $folderPermission->getEmailAddress();
                 $role = isset($filePermissionsMap[$email]) ? $filePermissionsMap[$email] : 'not selected';
 
