@@ -21,7 +21,7 @@ if (isset($_GET['code'])) {
     $_SESSION['access_token'] = $token;
 
     // Redirect to the main page (e.g., upload.php)
-    header('Location: image-upload.php');
+    header('Location: index.php');
     exit;
 } else {
     echo "No authorization code found.";

@@ -24,6 +24,8 @@ if ($client->isAccessTokenExpired()) {
 }
 
 $driveService = new Google_Service_Drive($client);
+$folderId = '1DAhA-K2jxmb_F-ETSRWhDTwfbIy7pu1A'; // Replace with your correct folder ID
+
 
 // Get the user's email from the access token
 $oauth2 = new Google_Service_Oauth2($client);
@@ -33,6 +35,34 @@ try {
 } catch (Google_Service_Exception $e) {
     echo 'Error: ' . $e->getMessage();
     exit;
+}
+
+
+$isOwner = false; // Default value
+try
+{
+  //set isOwner flag from folder permission based on userEmail
+$optParams = array(
+  'fields' => '*'
+);
+$permissions = $driveService->permissions->listPermissions($folderId, $optParams); 
+foreach ($permissions->getPermissions() as $permission) {
+    if ($permission->getEmailAddress() === $userEmail && $permission->getRole() === 'owner') {
+        $isOwner = true;
+        break;
+    }
+  }
+}
+  catch (Google_Service_Exception $e) {
+   
+}
+if (isset($_SESSION['message'])) {
+  echo "<div class='alert alert-success'>" . $_SESSION['message'] . "</div>";
+  unset($_SESSION['message']);
+}
+if (isset($_SESSION['error'])) {
+  echo "<div class='alert alert-danger'>" . $_SESSION['error'] . "</div>";
+  unset($_SESSION['error']);
 }
 ?>
 <!DOCTYPE html>
@@ -197,7 +227,7 @@ try {
                               <g transform="translate(1716.000000, 291.000000)">
                                 <g transform="translate(453.000000, 454.000000)">
                                   <path class="color-background" d="M43,10.7482083 L43,3.58333333 C43,1.60354167 41.3964583,0 39.4166667,0 L3.58333333,0 C1.60354167,0 0,1.60354167 0,3.58333333 L0,10.7482083 L43,10.7482083 Z" opacity="0.593633743"></path>
-                                  <path class="color-background" d="M0,16.125 L0,32.25 C0,34.2297917 1.60354167,35.8333333 3.58333333,35.8333333 L39.4166667,35.8333333 C41.3964583,35.8333333 43,34.2297917 43,32.25 L43,16.125 L0,16.125 Z M19.7083333,26.875 L7.16666667,26.875 L7.16666667,23.2916667 L19.7083333,23.2916667 L19.7083333,26.875 Z M35.8333333,26.875 L28.6666667,26.875 L28.6666667,23.2916667 L35.8333333,23.2916667 L35.8333333,26.875 Z"></path>
+                                  <path class="color-background" d="M0,16.125 L0,32.25 C0,34.2297917 1.60354167,35.8333333 3.58333333,35.8333333 L39.4166667,35.8333333 C41.3964583,35.8333333 43,34.2297917 43,32.25 L43,16.125 L0,16.125 Z M19.7083333,26.875 L7,26.875 L7,23.2916667 L19.7083333,23.2916667 L19.7083333,26.875 Z M35.8333333,26.875 L28.6666667,26.875 L28.6666667,23.2916667 L35.8333333,23.2916667 L35.8333333,26.875 Z"></path>
                                 </g>
                               </g>
                             </g>
@@ -229,53 +259,71 @@ try {
           <div class="card mb-4">
             <div class="card-header pb-0">
               <h6 style="display: block;float: left;">Gallery</h6>
-              <h8 style="display: block;float: right;"><a href="insert.php">Add Image</a></h8>
+              
+              
+                <h8 style="display: block;float: right;"><a href="insert.php">Add Image</a></h8>
+              
             </div>
             <div class="card-body px-0 pt-0 pb-2">
               <div class="table-responsive p-0">
                 <table class="table align-items-center mb-0">
                   <thead>
-                    <tr>
+                    <t>
                       <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Image</th>
-                      <!-- <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Action</th> -->
-                     
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <?php
-
-                        $folderId = '1DAhA-K2jxmb_F-ETSRWhDTwfbIy7pu1A'; // Replace with your correct folder ID
+                  <?php
                         $query = "'$folderId' in parents and trashed = false";
 
                         try {
                             $files = $driveService->files->listFiles([
                                 'q' => $query,
-                                'fields' => 'files(id, name, thumbnailLink)',
+                                'fields' => 'files(id, name, thumbnailLink, owners)',
                                 'supportsAllDrives' => true,
                                 'includeItemsFromAllDrives' => true
                             ]);
 
-                    
-                    foreach ($files->getFiles() as $file) {
-             echo "<tr>
-                      <td>
-                        <div class='d-flex px-2 py-1'>
-                          <div>
-                            <img src='{$file->getThumbnailLink()}' alt='{$file->getName()}' class='avatar avatar-sm me-3' referrerPolicy='no-referrer'>
-                          </div>
-                          <div class='d-flex flex-column justify-content-center'>
-                            <h6 class='mb-0 text-sm'>{$file->getName()}</h6>
-                          </div>
-                        </div>
-                      </td>
-                     
-                     
-                    </tr>";
-                }
-            } catch (Google_Service_Exception $e) {
-                echo 'Error: ' . $e->getMessage();
-            }
-                    ?>
+                            foreach ($files->getFiles() as $file) {
+                                $fileId = $file->getId();
+                                $fileName = $file->getName();
+                                $thumbnail = $file->getThumbnailLink();
+                                $owners = $file->getOwners();
+                                $isUploader = false;
+
+                                // Check if the logged-in user is one of the owners
+                                foreach ($owners as $owner) {
+                                    if ($owner->getEmailAddress() === $userEmail) {
+                                        $isUploader = true;
+                                        break;
+                                    }
+                                }
+
+                                echo "<tr>
+                                        <td>
+                                            <div class='d-flex px-2 py-1'>
+                                                <div>
+                                                    <img src='$thumbnail' alt='$fileName' class='avatar avatar-sm me-3' referrerpolicy='no-referrer'>
+                                                </div>
+                                                <div class='d-flex flex-column justify-content-center'>
+                                                    <h6 class='mb-0 text-sm'>$fileName</h6>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class='align-middle text-center'>";
+
+                                if ($isUploader) {
+                                    echo "<a href='test-permission.php?fileId=$fileId' style='background-color: green;' class='btn btn-sm btn-primary'>Permission</a>";
+                                    echo "<a href='delete.php?fileId=$fileId' style='background-color: red;' class='btn btn-sm btn-primary'>Delete</a>";
+                                }
+
+                                echo "</td></tr>";
+                            }
+                        } catch (Google_Service_Exception $e) {
+                            echo 'Error: ' . $e->getMessage();
+                        }
+                        ?>
                    
                   </tbody>
                 </table>
